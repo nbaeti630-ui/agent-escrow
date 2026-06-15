@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AgentEscrow — App</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%23a9ddd3'/><text x='16' y='21' font-size='13' text-anchor='middle' fill='%23010101' font-family='monospace' font-weight='bold'>AE</text></svg>" />
+<meta name="theme-color" content="#010101" />
+<meta property="og:title" content="AgentEscrow — App" />
+<meta property="og:description" content="Create tasks, submit work, and settle payments on Base Sepolia. Trustless escrow for the AI agent economy." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://nbaeti630-ui.github.io/agent-escrow/app.html" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="AgentEscrow — App" />
+<meta name="twitter:description" content="Create tasks, submit work, and settle payments on Base Sepolia." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -35,6 +44,7 @@
   .nav-r{display:flex;align-items:center;gap:8px}
   button{font-family:inherit;background:var(--mint);color:#010101;border:0;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
   button:hover{box-shadow:0 0 24px rgba(169,221,211,.3);transform:translateY(-1px)}
+  button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
   button.ghost{background:transparent;border:1px solid var(--line);color:var(--cream)}
   button.ghost:hover{border-color:var(--mint);box-shadow:none}
   button.sm{padding:9px 14px;font-size:13px}
@@ -63,6 +73,12 @@
   .kv b{color:var(--cream);font-weight:500}
   #log{font-family:var(--mono);font-size:12px;background:#070808;border:1px solid var(--line);border-radius:11px;padding:13px;max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-all}
   #log a{color:var(--mint)}.logerr{color:var(--refunded)}
+  #toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:calc(100% - 36px);max-width:420px;pointer-events:none}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--mint);border-radius:11px;padding:13px 15px;font-size:13.5px;box-shadow:0 8px 30px rgba(0,0,0,.55);animation:toastIn .3s ease,toastOut .35s ease forwards 3.8s}
+  .toast.err{border-left-color:var(--refunded)}
+  .toast.ok{border-left-color:var(--approved)}
+  @keyframes toastIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes toastOut{to{opacity:0;transform:translateY(14px)}}
   footer{text-align:center;color:var(--muted);font-size:12px;padding:40px 0;font-family:var(--mono);border-top:1px solid var(--line);margin-top:40px}
   footer a{color:var(--mint)}
   .fade{opacity:0;transform:translateY(16px);animation:fadeUp .7s ease forwards}
@@ -72,6 +88,7 @@
 <body>
 <div class="orb orb1"></div>
 <div class="orb orb2"></div>
+<div id="toasts"></div>
 
 <nav>
   <div class="nav-in">
@@ -81,7 +98,7 @@
     </div>
     <div class="nav-r">
       <span class="pill" id="account">Not connected</span>
-      <button class="sm" id="connectBtn" onclick="connect()">Connect</button>
+      <button class="sm" id="connectBtn" onclick="connect(this)">Connect</button>
     </div>
   </div>
 </nav>
@@ -108,7 +125,7 @@
       <div><label>Deadline (minutes from now)</label><input id="ctDeadline" type="number" value="60" /></div>
       <div><label>Reward (ETH)</label><input id="ctReward" type="number" step="0.0001" value="0.001" /></div>
     </div>
-    <div style="margin-top:16px"><button onclick="createTask()">Create Task & Lock Reward</button></div>
+    <div style="margin-top:16px"><button onclick="createTask(this)">Create Task & Lock Reward</button></div>
   </div>
 
   <div class="card">
@@ -117,21 +134,21 @@
       <div><label>Task ID</label><input id="swId" type="number" value="0" /></div>
       <div><label>Result URI</label><input id="swUri" placeholder="ipfs://… or https://…" /></div>
     </div>
-    <div style="margin-top:16px"><button class="ghost" onclick="submitWork()">Submit Work</button></div>
+    <div style="margin-top:16px"><button class="ghost" onclick="submitWork(this)">Submit Work</button></div>
   </div>
 
   <div class="card">
     <h3>✅ Approve Work <span class="sub">judge releases payment</span></h3>
     <label>Task ID</label>
     <input id="apId" type="number" value="0" />
-    <div style="margin-top:16px"><button class="ghost" onclick="approveWork()">Approve & Pay Agent</button></div>
+    <div style="margin-top:16px"><button class="ghost" onclick="approveWork(this)">Approve & Pay Agent</button></div>
   </div>
 
   <div class="card">
     <h3>↩️ Refund If Expired <span class="sub">deadline passed</span></h3>
     <label>Task ID</label>
     <input id="rfId" type="number" value="0" />
-    <div style="margin-top:16px"><button class="ghost" onclick="refundIfExpired()">Refund Requester</button></div>
+    <div style="margin-top:16px"><button class="ghost" onclick="refundIfExpired(this)">Refund Requester</button></div>
   </div>
 
   <div class="card">
@@ -185,6 +202,19 @@
     const time = new Date().toLocaleTimeString();
     el.innerHTML = "[" + time + "] " + (isErr ? "<span class='logerr'>" + msg + "</span>" : msg) + "\n" + el.innerHTML;
   }
+  function toast(msg, type) {
+    const c = $("toasts");
+    const t = document.createElement("div");
+    t.className = "toast" + (type ? " " + type : "");
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4300);
+  }
+  function setBusy(btn, busy) {
+    if (!btn) return;
+    if (busy) { btn.dataset.txt = btn.textContent; btn.textContent = "Processing…"; btn.disabled = true; }
+    else { btn.textContent = btn.dataset.txt || btn.textContent; btn.disabled = false; }
+  }
   function txMsg(hash) { return "tx: <a target='_blank' href='https://sepolia.basescan.org/tx/" + hash + "'>" + hash.slice(0, 14) + "…</a>"; }
   function errMsg(e) { return (e && e.data && e.data.message) || (e && e.reason) || (e && e.message) || String(e); }
   function shortAddr(a) { return (!a || a === ZERO) ? "—" : a.slice(0, 6) + "…" + a.slice(-4); }
@@ -202,9 +232,10 @@
     }
   }
 
-  async function connect() {
-    if (!window.ethereum) { log("No wallet detected. Open this page inside a wallet browser (Brave / MetaMask).", true); return; }
+  async function connect(btn) {
+    if (!window.ethereum) { toast("No wallet detected. Open this page in Brave or MetaMask.", "err"); log("No wallet detected. Open inside a wallet browser (Brave / MetaMask).", true); return; }
     try {
+      if (btn) { btn.disabled = true; btn.textContent = "Connecting…"; }
       await window.ethereum.request({ method: "eth_requestAccounts" });
       await ensureNetwork();
       provider = new ethers.providers.Web3Provider(window.ethereum, "any");
@@ -213,64 +244,81 @@
       contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
       $("account").textContent = shortAddr(userAddress);
       $("connectBtn").textContent = "Connected ✓";
+      $("connectBtn").disabled = false;
       if (!$("ctJudge").value) $("ctJudge").value = userAddress;
       log("Wallet connected on Base Sepolia: " + userAddress);
+      toast("Wallet connected ✓", "ok");
       refreshTasks();
-    } catch (e) { log(errMsg(e), true); }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+      log(errMsg(e), true); toast(errMsg(e), "err");
+    }
   }
 
-  async function createTask() {
-    if (!contract) return log("Connect your wallet first.", true);
+  async function createTask(btn) {
+    if (!contract) { toast("Connect your wallet first.", "err"); return log("Connect your wallet first.", true); }
     try {
       const prompt = $("ctPrompt").value.trim();
       const judge = $("ctJudge").value.trim();
       const mins = parseInt($("ctDeadline").value);
       const reward = $("ctReward").value.trim();
-      if (!prompt || !judge || !mins || !reward) return log("Please fill all Create Task fields.", true);
+      if (!prompt || !judge || !mins || !reward) { toast("Please fill all Create Task fields.", "err"); return log("Please fill all Create Task fields.", true); }
+      setBusy(btn, true);
       const deadline = Math.floor(Date.now() / 1000) + mins * 60;
       const tx = await contract.createTask(prompt, judge, deadline, { value: ethers.utils.parseEther(reward) });
       log("Creating task… " + txMsg(tx.hash));
       await tx.wait();
       log("✅ Task created & reward escrowed! " + txMsg(tx.hash));
+      toast("✅ Task created & reward escrowed!", "ok");
       refreshTasks();
-    } catch (e) { log(errMsg(e), true); }
+    } catch (e) { log(errMsg(e), true); toast(errMsg(e), "err"); }
+    finally { setBusy(btn, false); }
   }
 
-  async function submitWork() {
-    if (!contract) return log("Connect your wallet first.", true);
+  async function submitWork(btn) {
+    if (!contract) { toast("Connect your wallet first.", "err"); return log("Connect your wallet first.", true); }
     try {
       const id = $("swId").value; const uri = $("swUri").value.trim();
-      if (!uri) return log("Enter a result URI.", true);
+      if (!uri) { toast("Enter a result URI.", "err"); return log("Enter a result URI.", true); }
+      setBusy(btn, true);
       const tx = await contract.submitWork(id, uri);
       log("Submitting work… " + txMsg(tx.hash));
       await tx.wait();
       log("✅ Work submitted for task #" + id + "! " + txMsg(tx.hash));
+      toast("✅ Work submitted for task #" + id + "!", "ok");
       refreshTasks();
-    } catch (e) { log(errMsg(e), true); }
+    } catch (e) { log(errMsg(e), true); toast(errMsg(e), "err"); }
+    finally { setBusy(btn, false); }
   }
 
-  async function approveWork() {
-    if (!contract) return log("Connect your wallet first.", true);
+  async function approveWork(btn) {
+    if (!contract) { toast("Connect your wallet first.", "err"); return log("Connect your wallet first.", true); }
     try {
       const id = $("apId").value;
+      setBusy(btn, true);
       const tx = await contract.approveWork(id);
       log("Approving task #" + id + "… " + txMsg(tx.hash));
       await tx.wait();
       log("✅ Approved! Agent paid for task #" + id + ". " + txMsg(tx.hash));
+      toast("✅ Approved! Agent paid for task #" + id + ".", "ok");
       refreshTasks();
-    } catch (e) { log(errMsg(e), true); }
+    } catch (e) { log(errMsg(e), true); toast(errMsg(e), "err"); }
+    finally { setBusy(btn, false); }
   }
 
-  async function refundIfExpired() {
-    if (!contract) return log("Connect your wallet first.", true);
+  async function refundIfExpired(btn) {
+    if (!contract) { toast("Connect your wallet first.", "err"); return log("Connect your wallet first.", true); }
     try {
       const id = $("rfId").value;
+      setBusy(btn, true);
       const tx = await contract.refundIfExpired(id);
       log("Refunding task #" + id + "… " + txMsg(tx.hash));
       await tx.wait();
       log("✅ Refunded requester for task #" + id + ". " + txMsg(tx.hash));
+      toast("✅ Refunded requester for task #" + id + ".", "ok");
       refreshTasks();
-    } catch (e) { log(errMsg(e), true); }
+    } catch (e) { log(errMsg(e), true); toast(errMsg(e), "err"); }
+    finally { setBusy(btn, false); }
   }
 
   async function refreshTasks() {
