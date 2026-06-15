@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgentEscrow — App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#010101; --mint:#a9ddd3; --cream:#e8e3d5; --card:#0b0c0c;
+    --line:#1b1d1d; --muted:#7e827c; --mono:"JetBrains Mono",ui-monospace,monospace;
+    --open:#a9ddd3; --submitted:#e8d3a9; --approved:#7fd9bf; --refunded:#d3a9a9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--cream);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:0 18px}
+  .orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.16;z-index:-1;pointer-events:none}
+  .orb1{width:480px;height:480px;background:var(--mint);top:-160px;left:50%;transform:translateX(-50%);animation:float1 14s ease-in-out infinite}
+  .orb2{width:360px;height:360px;background:#4f7a72;bottom:-120px;right:-80px;animation:float2 18s ease-in-out infinite}
+  @keyframes float1{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,40px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(1,1,1,.6);border-bottom:1px solid var(--line)}
+  .nav-in{max-width:880px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}
+  .brand .mark{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--mint),#4f7a72 70%,#0b0c0c);box-shadow:0 0 16px rgba(169,221,211,.45)}
+  .brand .em{color:var(--mint)}
+  .nav-l{display:flex;align-items:center;gap:14px}
+  .home{font-size:13px;color:var(--muted);font-family:var(--mono)}
+  .home:hover{color:var(--mint)}
+  .nav-r{display:flex;align-items:center;gap:8px}
+  button{font-family:inherit;background:var(--mint);color:#010101;border:0;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  button:hover{box-shadow:0 0 24px rgba(169,221,211,.3);transform:translateY(-1px)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--cream)}
+  button.ghost:hover{border-color:var(--mint);box-shadow:none}
+  button.sm{padding:9px 14px;font-size:13px}
+  .pill{padding:8px 13px;border-radius:999px;background:#0e1010;border:1px solid var(--line);font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+  .head{text-align:center;padding:40px 0 8px}
+  .head h1{font-size:clamp(26px,6vw,40px);font-weight:900;letter-spacing:-.03em}
+  .head p{color:var(--muted);font-size:14.5px;margin-top:8px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:26px 0 6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center}
+  .stat .num{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--mint);font-family:var(--mono)}
+  .stat .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:6px}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:14px 0}
+  .card h3{font-size:15px;font-weight:700;margin-bottom:14px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .card h3 .sub{font-weight:400;color:var(--muted);font-size:12.5px}
+  label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:12px 0 5px}
+  input{width:100%;background:#070808;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--cream);font-size:14px;font-family:inherit;transition:.15s}
+  input:focus{outline:0;border-color:var(--mint);box-shadow:0 0 0 3px rgba(169,221,211,.1)}
+  .row{display:flex;gap:10px}.row>div{flex:1}
+  .muted{color:var(--muted);font-size:13px}
+  .task{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;background:#070808}
+  .task .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .st{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:4px 10px;border-radius:999px;color:#010101}
+  .st0{background:var(--open)}.st1{background:var(--submitted)}.st2{background:var(--approved)}.st3{background:var(--refunded)}
+  .kv{font-size:12.5px;color:var(--muted);margin:3px 0;font-family:var(--mono)}
+  .kv b{color:var(--cream);font-weight:500}
+  #log{font-family:var(--mono);font-size:12px;background:#070808;border:1px solid var(--line);border-radius:11px;padding:13px;max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+  #log a{color:var(--mint)}.logerr{color:var(--refunded)}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:40px 0;font-family:var(--mono);border-top:1px solid var(--line);margin-top:40px}
+  footer a{color:var(--mint)}
+  .fade{opacity:0;transform:translateY(16px);animation:fadeUp .7s ease forwards}
+  @keyframes fadeUp{to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<nav>
+  <div class="nav-in">
+    <div class="nav-l">
+      <a href="index.html" class="home">← Home</a>
+      <div class="brand"><span class="mark"></span> Agent<span class="em">Escrow</span></div>
+    </div>
+    <div class="nav-r">
+      <span class="pill" id="account">Not connected</span>
+      <button class="sm" id="connectBtn" onclick="connect()">Connect</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="head fade">
+    <h1>The protocol, live</h1>
+    <p>Create tasks, submit work, and settle payments on Base Sepolia.</p>
+    <div class="stats">
+      <div class="stat"><div class="num" id="statTasks">…</div><div class="lbl">Total Tasks</div></div>
+      <div class="stat"><div class="num" id="statLocked">…</div><div class="lbl">ETH Escrowed</div></div>
+      <div class="stat"><div class="num" id="statPaid">…</div><div class="lbl">ETH Paid Out</div></div>
+      <div class="stat"><div class="num" id="statRefunded">…</div><div class="lbl">ETH Refunded</div></div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h3>📝 Create Task <span class="sub">requester locks reward</span></h3>
+    <label>Task prompt</label>
+    <input id="ctPrompt" placeholder="e.g. Write a 500-word SEO blog post about Base Sepolia" />
+    <label>Judge address (who verifies the work)</label>
+    <input id="ctJudge" placeholder="0x… (tip: use your own address for a solo demo)" />
+    <div class="row">
+      <div><label>Deadline (minutes from now)</label><input id="ctDeadline" type="number" value="60" /></div>
+      <div><label>Reward (ETH)</label><input id="ctReward" type="number" step="0.0001" value="0.001" /></div>
+    </div>
+    <div style="margin-top:16px"><button onclick="createTask()">Create Task & Lock Reward</button></div>
+  </div>
+
+  <div class="card">
+    <h3>📤 Submit Work <span class="sub">agent delivers</span></h3>
+    <div class="row">
+      <div><label>Task ID</label><input id="swId" type="number" value="0" /></div>
+      <div><label>Result URI</label><input id="swUri" placeholder="ipfs://… or https://…" /></div>
+    </div>
+    <div style="margin-top:16px"><button class="ghost" onclick="submitWork()">Submit Work</button></div>
+  </div>
+
+  <div class="card">
+    <h3>✅ Approve Work <span class="sub">judge releases payment</span></h3>
+    <label>Task ID</label>
+    <input id="apId" type="number" value="0" />
+    <div style="margin-top:16px"><button class="ghost" onclick="approveWork()">Approve & Pay Agent</button></div>
+  </div>
+
+  <div class="card">
+    <h3>↩️ Refund If Expired <span class="sub">deadline passed</span></h3>
+    <label>Task ID</label>
+    <input id="rfId" type="number" value="0" />
+    <div style="margin-top:16px"><button class="ghost" onclick="refundIfExpired()">Refund Requester</button></div>
+  </div>
+
+  <div class="card">
+    <h3>📋 Tasks On-Chain</h3>
+    <button class="ghost" onclick="refreshTasks()">🔄 Refresh Tasks</button>
+    <div id="tasks" style="margin-top:12px"><p class="muted">Loading tasks…</p></div>
+  </div>
+
+  <div class="card">
+    <h3>🧾 Activity Log</h3>
+    <div id="log">Ready. Connect your wallet to begin.</div>
+  </div>
+
+  <footer>
+    Contract <a id="cAddr" target="_blank">0x586d…79B1</a> on Base Sepolia ·
+    <a href="https://base-sepolia.blockscout.com/address/0x586d683E98d32A22646DebECC1e706753C0079B1" target="_blank">Verified source ↗</a><br/>
+    Built on Base · Designed for Rialo · Made on an Android phone 📱
+  </footer>
+</div>
+
+<script>
+  const CONTRACT_ADDRESS = "0x586d683E98d32A22646DebECC1e706753C0079B1";
+  const CHAIN_ID = 84532;
+  const CHAIN_ID_HEX = "0x14a34";
+  const CHAIN_PARAMS = {
+    chainId: CHAIN_ID_HEX,
+    chainName: "Base Sepolia",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://sepolia.base.org"],
+    blockExplorerUrls: ["https://sepolia.basescan.org"]
+  };
+  const ABI = [
+    "function nextTaskId() view returns (uint256)",
+    "function tasks(uint256) view returns (address requester, address agent, address judge, uint256 reward, uint256 deadline, string prompt, string resultURI, uint8 status)",
+    "function createTask(string prompt, address judge, uint256 deadline) payable returns (uint256)",
+    "function submitWork(uint256 id, string resultURI)",
+    "function approveWork(uint256 id)",
+    "function refundIfExpired(uint256 id)"
+  ];
+  const STATUS = ["Open", "Submitted", "Approved", "Refunded"];
+  const ZERO = "0x0000000000000000000000000000000000000000";
+  const RPC = "https://sepolia.base.org";
+  let provider, signer, contract, userAddress;
+  let readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, new ethers.providers.JsonRpcProvider(RPC));
+
+  const $ = (id) => document.getElementById(id);
+  $("cAddr").href = "https://sepolia.basescan.org/address/" + CONTRACT_ADDRESS;
+
+  function log(msg, isErr) {
+    const el = $("log");
+    const time = new Date().toLocaleTimeString();
+    el.innerHTML = "[" + time + "] " + (isErr ? "<span class='logerr'>" + msg + "</span>" : msg) + "\n" + el.innerHTML;
+  }
+  function txMsg(hash) { return "tx: <a target='_blank' href='https://sepolia.basescan.org/tx/" + hash + "'>" + hash.slice(0, 14) + "…</a>"; }
+  function errMsg(e) { return (e && e.data && e.data.message) || (e && e.reason) || (e && e.message) || String(e); }
+  function shortAddr(a) { return (!a || a === ZERO) ? "—" : a.slice(0, 6) + "…" + a.slice(-4); }
+  function fmt(bn) { return parseFloat(ethers.utils.formatEther(bn)).toFixed(4); }
+
+  async function ensureNetwork() {
+    const current = await window.ethereum.request({ method: "eth_chainId" });
+    if (parseInt(current, 16) !== CHAIN_ID) {
+      try {
+        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] });
+      } catch (e) {
+        if (e.code === 4902) { await window.ethereum.request({ method: "wallet_addEthereumChain", params: [CHAIN_PARAMS] }); }
+        else { throw e; }
+      }
+    }
+  }
+
+  async function connect() {
+    if (!window.ethereum) { log("No wallet detected. Open this page inside a wallet browser (Brave / MetaMask).", true); return; }
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      await ensureNetwork();
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      $("account").textContent = shortAddr(userAddress);
+      $("connectBtn").textContent = "Connected ✓";
+      if (!$("ctJudge").value) $("ctJudge").value = userAddress;
+      log("Wallet connected on Base Sepolia: " + userAddress);
+      refreshTasks();
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  async function createTask() {
+    if (!contract) return log("Connect your wallet first.", true);
+    try {
+      const prompt = $("ctPrompt").value.trim();
+      const judge = $("ctJudge").value.trim();
+      const mins = parseInt($("ctDeadline").value);
+      const reward = $("ctReward").value.trim();
+      if (!prompt || !judge || !mins || !reward) return log("Please fill all Create Task fields.", true);
+      const deadline = Math.floor(Date.now() / 1000) + mins * 60;
+      const tx = await contract.createTask(prompt, judge, deadline, { value: ethers.utils.parseEther(reward) });
+      log("Creating task… " + txMsg(tx.hash));
+      await tx.wait();
+      log("✅ Task created & reward escrowed! " + txMsg(tx.hash));
+      refreshTasks();
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  async function submitWork() {
+    if (!contract) return log("Connect your wallet first.", true);
+    try {
+      const id = $("swId").value; const uri = $("swUri").value.trim();
+      if (!uri) return log("Enter a result URI.", true);
+      const tx = await contract.submitWork(id, uri);
+      log("Submitting work… " + txMsg(tx.hash));
+      await tx.wait();
+      log("✅ Work submitted for task #" + id + "! " + txMsg(tx.hash));
+      refreshTasks();
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  async function approveWork() {
+    if (!contract) return log("Connect your wallet first.", true);
+    try {
+      const id = $("apId").value;
+      const tx = await contract.approveWork(id);
+      log("Approving task #" + id + "… " + txMsg(tx.hash));
+      await tx.wait();
+      log("✅ Approved! Agent paid for task #" + id + ". " + txMsg(tx.hash));
+      refreshTasks();
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  async function refundIfExpired() {
+    if (!contract) return log("Connect your wallet first.", true);
+    try {
+      const id = $("rfId").value;
+      const tx = await contract.refundIfExpired(id);
+      log("Refunding task #" + id + "… " + txMsg(tx.hash));
+      await tx.wait();
+      log("✅ Refunded requester for task #" + id + ". " + txMsg(tx.hash));
+      refreshTasks();
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  async function refreshTasks() {
+    try {
+      const c = contract || readContract;
+      const n = (await c.nextTaskId()).toNumber();
+      const box = $("tasks");
+      let locked = ethers.constants.Zero, paid = ethers.constants.Zero, refunded = ethers.constants.Zero;
+      if (n === 0) { box.innerHTML = "<p class='muted'>No tasks yet. Create the first one above. 🚀</p>"; }
+      else {
+        box.innerHTML = "";
+        for (let i = 0; i < n; i++) {
+          const t = await c.tasks(i);
+          const s = t.status;
+          if (s === 0 || s === 1) locked = locked.add(t.reward);
+          else if (s === 2) paid = paid.add(t.reward);
+          else if (s === 3) refunded = refunded.add(t.reward);
+          const dl = new Date(t.deadline.toNumber() * 1000).toLocaleString();
+          const el = document.createElement("div");
+          el.className = "task";
+          el.innerHTML =
+            "<div class='top'><b>Task #" + i + "</b><span class='st st" + s + "'>" + (STATUS[s] || s) + "</span></div>" +
+            "<div class='kv'>Prompt: <b>" + (t.prompt || "—") + "</b></div>" +
+            "<div class='kv'>Reward: <b>" + ethers.utils.formatEther(t.reward) + " ETH</b></div>" +
+            "<div class='kv'>Requester: <b>" + shortAddr(t.requester) + "</b> · Agent: <b>" + shortAddr(t.agent) + "</b> · Judge: <b>" + shortAddr(t.judge) + "</b></div>" +
+            "<div class='kv'>Deadline: <b>" + dl + "</b></div>" +
+            (t.resultURI ? "<div class='kv'>Result: <b>" + t.resultURI + "</b></div>" : "");
+          box.appendChild(el);
+        }
+      }
+      $("statTasks").textContent = n;
+      $("statLocked").textContent = fmt(locked);
+      $("statPaid").textContent = fmt(paid);
+      $("statRefunded").textContent = fmt(refunded);
+    } catch (e) { log(errMsg(e), true); }
+  }
+
+  if (window.ethereum) {
+    window.ethereum.on("accountsChanged", () => location.reload());
+    window.ethereum.on("chainChanged", () => location.reload());
+  }
+  refreshTasks();
+</script>
+</body>
+</html>
